@@ -12,7 +12,7 @@ def get_pages(query, results=10): #staviti posle results = 50
   pages = list()
   for title in titles:
       try:
-          page = wikipedia.page(title)
+          page = wikipedia.page(title) # ovo sad samo naslovi stranica, ako zelimo tekst sa stranice: text = page.content
           data = (query, page)
           pages.append(data)
       except:
@@ -65,22 +65,27 @@ def choose_texts(tuple, currentElement): #uzima po pet tekstova za svaku kljucnu
         return (newArray + list(currentChar), text, index+1, counter+1)
     else:
         return (newArray, text, index+1, counter+1)
+
+def create_tokens(tuple, currentChar):
+    array, chosenTexts, index = tuple
+    if index == len(chosenTexts)-1 or currentChar == "$":
+        return (array, chosenTexts, index+1)
+    token = currentChar + chosenTexts[index+1]
+    strings = []
+    strings.append(token)
+    return (array + strings, chosenTexts, index+1)
+
 if __name__ == '__main__':
     keywords = ['Beograd', 'Prvi svetski rat', 'Protein', 'Mikroprocesor', 'Stefan Nemanja', 'Košarka']
     pool = multiprocessing.pool.ThreadPool(multiprocessing.cpu_count())
     titlesMatrix = pool.map(get_pages, keywords) #titlesMatrix = map(get_pages, keywords)-> za 2 sekunde sporije od map-a iz pool-a
     titlesList = reduce(append_list, titlesMatrix, [])
-
-    #print(titlesList)
     processedText = pool.map(prepare, titlesList)
+    chosenTexts, oldText, endIndex, cnt = reduce(choose_texts, processedText, ([], processedText, 0, 0))#chosenTexts je lista karaktera
+    tokens, text, index = reduce(create_tokens, chosenTexts, ([], chosenTexts, 0))
+    print(tokens)
 
-    print(processedText)
-
-    chosenTexts, oldText, endIndex, cnt = reduce(choose_texts, processedText, ([], processedText, 0, 0))
-    print(chosenTexts)
-
-
-# stao sam kod zadatka 3, druga tacka
+# stao sam kod zadatka 3, treca tacka
 
 
 
