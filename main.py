@@ -1,5 +1,6 @@
 import multiprocessing.pool
 from functools import reduce
+from functools import partial
 import wikipedia
 wikipedia.set_lang("sr")
 
@@ -7,7 +8,7 @@ specialCharacters = ['=', '-', ',', '!', '?', '.', '$', '(', ')', '[', ']', ';',
 
 #'''Dohvata naslove zahtevanog broja stranica koje se pojavaljuju kao
 #  rezultati pretrage za zadatu kljucnu rec'''
-def get_pages(query, results=10): #staviti posle results = 50
+def get_pages(query, results=50): #staviti posle results = 50
   titles = wikipedia.search(query, results=results)
   pages = list()
   for title in titles:
@@ -92,11 +93,11 @@ def reduce_token_tuples(args, currentTokenTuple):
         copiedArray[index] = (key, int(num)+1)
         return (copiedArray, token, index)
 
-def insert_token(args, currentString):
+def put_token(args, currentString):
     array, tokenTuple, tmp, buffer = args
     token, number = tokenTuple
     flag = False
-    if (currentString in token): # a,g,e; currentString = ag
+    if (currentString in token):
         flag = True
         tmp += currentString
     if flag == False:
@@ -111,6 +112,12 @@ def insert_token(args, currentString):
         return (array, tokenTuple, tmp, buffer)
     else:
         return (array + helpArray, tokenTuple, "", [])
+
+#def insert_token(accumulator, value, token):
+    #...
+    #inserter = partial(insert_token, token=token)
+    #tokenized = reduce(inserter, tokenized, ([], 0))
+
 if __name__ == '__main__':
     keywords = ['Beograd', 'Prvi svetski rat', 'Protein', 'Mikroprocesor', 'Stefan Nemanja', 'Košarka']
     pool = multiprocessing.pool.ThreadPool(multiprocessing.cpu_count())
@@ -122,8 +129,6 @@ if __name__ == '__main__':
 
     currentListOfTokens = []# cemu bi ovo trebalo da sluzi?
     for i in range(5000):
-        if i < 100 or i > 4900:
-            print(i, chosenTexts)
         returnTuple = reduce(create_tokens, chosenTexts, ([], chosenTexts, 0))# returnTuple je samo promenljiva u koju pakujem povratnu vrednost reduce-a posto on vraca tuple.
         listOfCandidatesForNextToken = returnTuple[0]                         # Uvek ce se na nultom indeksu nalaziti niz koji mi je dalje potreban; ostali elementi tuple-a su nebitni.
         tupleTokens = pool.map(create_token_tuples, listOfCandidatesForNextToken)
@@ -135,11 +140,21 @@ if __name__ == '__main__':
         mostCommonToken = sortedReducedTupleTokens[0]
         currentListOfTokens.append(mostCommonToken)
 
-        returnTuple = reduce(insert_token, chosenTexts, ([], mostCommonToken, "", []))
+        returnTuple = reduce(put_token, chosenTexts, ([], mostCommonToken, "", []))
         chosenTexts = returnTuple[0]
-    print(currentListOfTokens, len(currentListOfTokens))
 
-#zadatak 3, tacka 8
+    tupleTokens = pool.map(create_token_tuples, chosenTexts)
+    sortedTupleTokens = sorted(tupleTokens, key=lambda tup: tup[0])
+    returnTuple = reduce(reduce_token_tuples, sortedTupleTokens, ([], 0, -1))
+    reducedTupleTokens = returnTuple[0]
+    sortedReducedTupleTokens = sorted(reducedTupleTokens, key=lambda tup: len(tup[0]), reverse=True)
+    #print(sortedReducedTupleTokens)
+
+    #kod za koji nisam siguran da li je dobar:
+    #list = reduce(insert_token, sortedReducedTupleTokens, )
+
+
+
 
 
 
