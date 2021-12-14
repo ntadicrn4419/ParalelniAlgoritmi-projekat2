@@ -122,9 +122,8 @@ def put_token(args, currentString):
 
 def insert_tokens_in_text(text, currentToken):
     key, value = text
-    arrayOfChars = list(value)
-    returnTuple = reduce(put_token, arrayOfChars, ([], currentToken, "", []))
-    return (key, returnTuple[0])
+    returnTuple = reduce(put_token, value, ([], currentToken, "", []))
+    return (key, returnTuple[0] + returnTuple[3])
 
 
 #def tokenize_all_texts(text):
@@ -154,7 +153,7 @@ if __name__ == '__main__':
         currentListOfTokens.append(mostCommonToken) # -> nije neophodno, ne koristi se nigde ta lista
 
         returnTuple = reduce(put_token, chosenTexts, ([], mostCommonToken, "", []))
-        chosenTexts = returnTuple[0]
+        chosenTexts = returnTuple[0] + returnTuple[3] #dodaje buffer ukoliko nije prazan
 
     tupleTokens = pool.map(create_token_tuples, chosenTexts)
     sortedTupleTokens = sorted(tupleTokens, key=lambda tup: tup[0])
@@ -164,6 +163,8 @@ if __name__ == '__main__':
 
     # tokeniziranje jednog teksta
     newText1 = reduce(insert_tokens_in_text, sortedReducedTupleTokens, processedText[0])
+    print(sortedReducedTupleTokens)
+    print(processedText)
     print(newText1)
 
     #tokeniziranje svih tekstova ; kod za koji nisam siguran da li je dobar:
