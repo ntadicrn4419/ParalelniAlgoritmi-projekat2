@@ -1,17 +1,14 @@
 import multiprocessing.pool
 from functools import reduce
 from functools import partial
-# from numba import jit
+from numba import jit
 import wikipedia
 
 wikipedia.set_lang("en")  # staviti jezik da bude english, posto nam za srpski mesa cirilicu i latinicu
 
 specialCharacters = ['=', '-', ',', '!', '?', '.', '$', '(', ')', '[', ']', ';', '{', '}', '@', '#', '%', '^', '&', '*',
                      '_', '+', '-', '/', '\\', '\'', '"', '<', '>', '|']
-finalTokens = []
-
-
-# '''Dohvata naslove zahtevanog broja stranica koje se pojavaljuju kao
+# '''Dohvata tekstove zahtevanog broja stranica koje se pojavljuju kao
 #  rezultati pretrage za zadatu kljucnu rec'''
 def get_pages(query, results=10):  # staviti posle results = 50
     titles = wikipedia.search(query, results=results)
@@ -118,7 +115,7 @@ def reduce_token_tuples(args, currentTokenTuple):
 def put_token(args, currentChar):
     tokenTuple, newText, originalText, index, sleep = args
     if (index < sleep):
-        return (tokenTuple, newText, originalText, index + 1, sleep)
+        return (newText, tokenTuple, originalText, index + 1, sleep)
     token, value = tokenTuple
     if (currentChar in token):  # ovde i
         tmp = "".join(originalText[index: index + len(token)])  # ovde je bio problem
@@ -126,21 +123,25 @@ def put_token(args, currentChar):
         if (tmp == token):
             helpArray = []
             helpArray.append(token)
-            return (tokenTuple, newText + helpArray, originalText, index + 1, index + len(token))
+            return (newText + helpArray, tokenTuple, originalText, index + 1, index + len(token))
     helpArray = []
     helpArray.append(currentChar)
-    return (tokenTuple, newText + helpArray, originalText, index + 1, 0)
+    return (newText + helpArray, tokenTuple, originalText, index + 1, 0)
 
-
+#@jit
 def insert_tokens_in_text(text, currentToken):
     # value je tekst koji se obradjuje
     key, value = text
     returnTuple = reduce(put_token, value, (currentToken, [], value, 0, 0))
-    return (key, returnTuple[1])
+    return (key, returnTuple[0])
 
+def tokenize_all_texts(tokens, currentText):
+    return reduce(insert_tokens_in_text, tokens, currentText)
 
-# def tokenize_all_texts(text):
-# return reduce(insert_tokens_in_text, finalTokens, text)
+#def tokens_in_text(tokens, textTuple): # textTuple je element niza newTexts
+    #keyword, textValue = textTuple
+    #sad za svaki token iz niza tokena tokens treba proveriti koliko puta se pojavljuje u datom tekstu(textValue)
+    #return map(get_number_of_this_token, tokens)????
 
 if __name__ == '__main__':
 
@@ -153,7 +154,7 @@ if __name__ == '__main__':
     returnTuple = reduce(choose_texts, processedText, ([], processedText, 0, 0))  # chosenTexts je lista karaktera
     chosenTexts = returnTuple[0]
     currentListOfTokens = []  # cemu bi ovo trebalo da sluzi?
-    for i in range(50):  # staviti posle broj iteracija na 5000
+    for i in range(2):  # staviti posle broj iteracija na 5000
         returnTuple = reduce(create_tokens, chosenTexts, ([], chosenTexts,0))  # returnTuple je samo promenljiva u koju pakujem povratnu vrednost reduce-a posto on vraca tuple.
         listOfCandidatesForNextToken = returnTuple[0]  # Uvek ce se na nultom indeksu nalaziti niz koji mi je dalje potreban; ostali elementi tuple-a su nebitni.
 
@@ -167,7 +168,7 @@ if __name__ == '__main__':
         currentListOfTokens.append(mostCommonToken)  # -> nije neophodno, ne koristi se nigde ta lista
 
         returnTuple = reduce(put_token, chosenTexts, (mostCommonToken, [], chosenTexts, 0, 0))
-        chosenTexts = returnTuple[1]  # dodaje buffer ukoliko nije prazan
+        chosenTexts = returnTuple[0]  # dodaje buffer ukoliko nije prazan
 
     tupleTokens = pool.map(create_token_tuples, chosenTexts)
     sortedTupleTokens = sorted(tupleTokens, key=lambda tup: tup[0])
@@ -176,10 +177,14 @@ if __name__ == '__main__':
     sortedReducedTupleTokens = sorted(reducedTupleTokens, key=lambda tup: len(tup[0]), reverse=True)
 
     # tokeniziranje jednog teksta
-    print("UBACIVANJE TOKENA U NEKI TEKST")
-    newText1 = reduce(insert_tokens_in_text, sortedReducedTupleTokens, processedText[0])
-    print(sortedReducedTupleTokens)
-    print(processedText[0])
-    print(newText1)
+    # print("UBACIVANJE TOKENA U NEKI TEKST")
+    # newText1 = reduce(insert_tokens_in_text, sortedReducedTupleTokens, processedText[0])
+    # print(sortedReducedTupleTokens)
+    # print(processedText[0])
+    # print(newText1)
+
+    #tokeniziranje svih tekstova
+    newTexts = pool.map(partial(tokenize_all_texts, sortedReducedTupleTokens), processedText)# newTexts je lista taplova gde je key kljucna rec, a value je niz tokena(i karaktera, ali i samo jedan karakter sada posmatrama kao token)
+
 
 
