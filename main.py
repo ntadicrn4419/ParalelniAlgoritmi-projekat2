@@ -113,7 +113,7 @@ def reduce_token_tuples(args, currentTokenTuple):
 
 
 def put_token(args, currentChar):
-    tokenTuple, newText, originalText, index, sleep = args
+    newText, tokenTuple, originalText, index, sleep = args
     if (index < sleep):
         return (newText, tokenTuple, originalText, index + 1, sleep)
     token, value = tokenTuple
@@ -132,16 +132,30 @@ def put_token(args, currentChar):
 def insert_tokens_in_text(text, currentToken):
     # value je tekst koji se obradjuje
     key, value = text
-    returnTuple = reduce(put_token, value, (currentToken, [], value, 0, 0))
+    returnTuple = reduce(put_token, value, ([], currentToken, value, 0, 0))
     return (key, returnTuple[0])
 
 def tokenize_all_texts(tokens, currentText):
     return reduce(insert_tokens_in_text, tokens, currentText)
 
-#def tokens_in_text(tokens, textTuple): # textTuple je element niza newTexts
-    #keyword, textValue = textTuple
-    #sad za svaki token iz niza tokena tokens treba proveriti koliko puta se pojavljuje u datom tekstu(textValue)
-    #return map(get_number_of_this_token, tokens)????
+def count_this_token_in_text(args ,currentString):
+    token, cnt = args
+    if token == currentString:
+        return (token, cnt+1)
+    return (token, cnt)
+
+def count_tokens_in_text(args, currentToken):
+    array, text = args
+    tokenTuple = reduce(count_this_token_in_text, text, (currentToken[0], 0))
+    helpArray = []
+    helpArray.append(tokenTuple)
+    return (array + helpArray, text)
+
+def count_tokens_in_all_texts(sortedReducedTupleTokens, currentText):
+    keyword, value = currentText
+    returnTuple = reduce(count_tokens_in_text, sortedReducedTupleTokens, ([], value))
+    arrayOfTokTuples = returnTuple[0]
+    return (keyword, arrayOfTokTuples)
 
 if __name__ == '__main__':
 
@@ -154,7 +168,7 @@ if __name__ == '__main__':
     returnTuple = reduce(choose_texts, processedText, ([], processedText, 0, 0))  # chosenTexts je lista karaktera
     chosenTexts = returnTuple[0]
     currentListOfTokens = []  # cemu bi ovo trebalo da sluzi?
-    for i in range(2):  # staviti posle broj iteracija na 5000
+    for i in range(10):  # staviti posle broj iteracija na 5000
         returnTuple = reduce(create_tokens, chosenTexts, ([], chosenTexts,0))  # returnTuple je samo promenljiva u koju pakujem povratnu vrednost reduce-a posto on vraca tuple.
         listOfCandidatesForNextToken = returnTuple[0]  # Uvek ce se na nultom indeksu nalaziti niz koji mi je dalje potreban; ostali elementi tuple-a su nebitni.
 
@@ -167,7 +181,7 @@ if __name__ == '__main__':
         mostCommonToken = sortedReducedTupleTokens[0]
         currentListOfTokens.append(mostCommonToken)  # -> nije neophodno, ne koristi se nigde ta lista
 
-        returnTuple = reduce(put_token, chosenTexts, (mostCommonToken, [], chosenTexts, 0, 0))
+        returnTuple = reduce(put_token, chosenTexts, ([], mostCommonToken, chosenTexts, 0, 0))
         chosenTexts = returnTuple[0]  # dodaje buffer ukoliko nije prazan
 
     tupleTokens = pool.map(create_token_tuples, chosenTexts)
@@ -186,5 +200,17 @@ if __name__ == '__main__':
     #tokeniziranje svih tekstova
     newTexts = pool.map(partial(tokenize_all_texts, sortedReducedTupleTokens), processedText)# newTexts je lista taplova gde je key kljucna rec, a value je niz tokena(i karaktera, ali i samo jedan karakter sada posmatrama kao token)
 
+    #brojanje koliko puta se odredjeni token pojavljuje u jednom tekstu
+    # text1 = newTexts[0]
+    # tok = sortedReducedTupleTokens[0]
+    # tokTuple = reduce(count_this_token_in_text, text1, (tok, 0))
 
+    #koliko puta se svaki token pojavljuje u jednom tekstu
+    # returnTuple = reduce(count_tokens_in_text, sortedReducedTupleTokens, ([], text1))
+    # arrayOfTokTuples = returnTuple[0]
 
+    #koliko puta se svaki token pojavljuje u svim tekstovima
+    listOfTextsWithTokens = pool.map(partial(count_tokens_in_all_texts, sortedReducedTupleTokens), newTexts)
+    for i in listOfTextsWithTokens:
+        print(i)
+        print("\n")
